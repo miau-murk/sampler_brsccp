@@ -4,6 +4,14 @@ Sampling for computational chemistry
 
 ## Install nutpie:
 
-`pip install nutpie`
-or
-`conda install conda-forge::nutpie`
+install with conda
+
+```bash
+conda install conda-forge::nutpie
+```
+
+or using pip
+
+```bash
+pip install nutpie
+```
