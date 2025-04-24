@@ -24,7 +24,7 @@ def log_multinormal_distribution(x, mean, cov):
 if __name__ == "__main__":
     np.random.seed(42)
     
-    dim = 1000
+    dim = 10
     mean_vector = np.zeros(dim)
     covariance_matrix = generate_random_covariance_matrix(dim)
     
@@ -35,14 +35,12 @@ if __name__ == "__main__":
     )
     result = nuts.create_sample(
         mass_matrix_mode=MassMatrixAdaptation.LOW_RANK,
-        draws=500,
-        tune=500
+        draws=100,
+        tune=500,
+        chains = 2
     )
-    
-    intermean = np.mean(result, axis=1)
-    mean_error = abs(intermean[0]).mean()
-    
-    print(f"Sample mean:\n{intermean}")
-    print(f"Mean absolute deviation: {mean_error:.4f}")
+    # save bin file
+    # nuts.statistics.to_netcdf("results.nc")
 
+    nuts.statistics.save_to_log()
        

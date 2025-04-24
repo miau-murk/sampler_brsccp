@@ -27,7 +27,7 @@ class Statistic(arviz.data.inference_data.InferenceData):
             'divergence_start', 'divergence_end', 'divergence_momentum'
         ]
     
-    def save_to_txt(self, filename="sampling_stats.txt", mode="basic"):
+    def save_to_log(self, filename="sampling_stats.log"):
         """Save statistics to text file"""
         if not hasattr(self, 'sample_stats'):
             raise ValueError("No sampling data available")
@@ -35,38 +35,82 @@ class Statistic(arviz.data.inference_data.InferenceData):
         with open(filename, 'w') as f:
             f.write("Sampling Statistics Report\n")
             f.write("="*30 + "\n\n")
-            
-            if mode == "basic":
-                self._save_basic_stats(f)
-            elif mode == "detailed":
-                self._save_basic_stats(f)
-                self._save_detailed_stats(f)
-            else:
-                raise ValueError("Invalid mode. Use 'basic' or 'detailed'")
+            self._save_basic_stats(f)
     
     def _save_basic_stats(self, file_obj):
-        """Helper method to save basic stats"""
+        """Helper method to save basic stats with aligned columns"""
+
+        file_obj.write("\n\nGenerated Samples:\n")        
+        samples = self.posterior.y.values
+        n_chains, n_samples, n_dim = samples.shape
+        
+        # Write header
+        header = "Chain | Step"
+        file_obj.write(header + "\n")
+        file_obj.write("-" * len(header) + "\n")
+        
+        # Write sample data
+        for chain in range(n_chains):
+            for step in range(n_samples):
+                sample_values = samples[chain, step, :]
+                row = f"{chain} | {step+1}  " + "  ".join([f"{val:.4f}" for val in sample_values])
+                file_obj.write(row + "\n")
+
         file_obj.write("\nBasic Statistics:\n")
         file_obj.write("-"*20 + "\n")
         
         stats = self.sample_stats
-        for stat_name in self.basic_stats:
-            if hasattr(stats, stat_name):
-                values = getattr(stats, stat_name).values
-                file_obj.write(f"{stat_name}: {values.mean():.4f} (mean)\n")
-    
-    def _save_detailed_stats(self, file_obj):
-        """Helper method to save detailed stats"""
-        file_obj.write("\nDetailed Statistics:\n")
-        file_obj.write("-"*20 + "\n")
+        n_chains = len(stats.chain)
+        n_steps = len(stats.draw)
         
-        stats = self.sample_stats
-        for stat_name in self.detailed_stats:
-            if hasattr(stats, stat_name):
-                values = getattr(stats, stat_name).values
-                file_obj.write(f"\n{stat_name}:\n")
-                file_obj.write(str(values) + "\n")
-    
+        col_widths = {
+            'Step': 6,
+            'depth': 10,
+            'maxdepth_reached': 16,
+            'logp': 10,
+            'energy': 10,
+            'diverging': 11,
+            'step_size': 11,
+            'step_size_bar': 14,
+            'n_steps': 10
+        }
+        
+        # Create format strings
+        header_fmt = "  ".join(
+            f"{{:<{width}}}" for width in col_widths.values()
+        )
+        row_fmt = "  ".join(
+            f"{{:<{width}.4f}}" if name != 'Step' else f"{{:<{width}}}"
+            for name, width in col_widths.items()
+        )
+        
+        for chain in range(n_chains):
+            file_obj.write(f"\nChain {chain}\n")
+            # Write header
+            file_obj.write(header_fmt.format(*col_widths.keys()) + "\n")
+            file_obj.write("-" * (sum(col_widths.values()) + 3*(len(col_widths)-1)) + "\n")
+            
+            # Write data rows
+            for step in range(n_steps):
+                row_data = {'Step': str(step+1)}
+                for stat_name in self.basic_stats:
+                    if hasattr(stats, stat_name):
+                        values = getattr(stats, stat_name).values
+                        row_data[stat_name] = values[chain, step]
+                    else:
+                        row_data[stat_name] = float('nan')
+                
+                # Format the row
+                formatted_values = []
+                for name in col_widths:
+                    val = row_data[name]
+                    if name == 'Step':
+                        formatted_values.append(val)
+                    else:
+                        formatted_values.append(float(val))
+                
+                file_obj.write(row_fmt.format(*formatted_values) + "\n")
+        
 
 class MassMatrixAdaptation(Enum):
     STANDARD = auto()        # standart full matrix
